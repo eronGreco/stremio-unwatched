@@ -36,10 +36,14 @@ app.get('/healthz', (_req, res) => {
 });
 
 app.post('/api/test-auth', async (req, res) => {
+  const startedAt = Date.now();
+  console.log('[auth] Validating Stremio authKey...');
   try {
     const result = await validateAuthKey(req.body?.authKey);
+    console.log(`[auth] OK, ${result.libraryItems} library items (${Date.now() - startedAt} ms)`);
     res.json(result);
   } catch (error) {
+    console.error(`[auth] FAILED (${Date.now() - startedAt} ms):`, error.message);
     res.status(401).json({ ok: false, error: error.message });
   }
 });
