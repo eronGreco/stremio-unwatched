@@ -40,8 +40,8 @@ function setupPage(baseUrl) {
       <a class="button" id="install" href="#" hidden>Instalar no Stremio</a>
     </div>
   </form>
-  <div id="status" class="info">Cole a chave e clique em “Validar chave”.</div>
-  <small>V0.1 é voltada a teste local. A URL instalada contém sua authKey, portanto não compartilhe a URL do manifest. A versão pública usará um token opaco próprio.</small>
+  <div id="status" class="info">Cole a chave. A validação começa automaticamente.</div>
+  <small>V0.1.1 é voltada a teste local. A URL instalada contém sua authKey, portanto não compartilhe a URL do manifest. A versão pública usará um token opaco próprio.</small>
 </main>
 <script>
 (() => {
@@ -51,27 +51,31 @@ function setupPage(baseUrl) {
   const testButton = document.getElementById('test');
   const install = document.getElementById('install');
   const statusBox = document.getElementById('status');
+  let debounceTimer = null;
+  let validating = false;
+  let lastValidatedKey = '';
+
+  function cleanKey() {
+    return keyInput.value.trim().replace(/^['"]|['"]$/g, '');
+  }
 
   function setStatus(message, kind) {
     statusBox.className = kind || '';
     statusBox.textContent = message;
   }
 
-  keyInput.addEventListener('input', () => {
-    install.hidden = true;
-    setStatus(keyInput.value.trim() ? 'Chave inserida. Clique em “Validar chave”.' : 'Cole a chave e clique em “Validar chave”.', 'info');
-  });
-
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const authKey = keyInput.value.trim().replace(/^['"]|['"]$/g, '');
+  async function validateKey() {
+    const authKey = cleanKey();
     install.hidden = true;
 
     if (!authKey) {
       setStatus('Cole uma authKey antes de continuar.', 'bad');
       return;
     }
+    if (validating) return;
+    if (authKey === lastValidatedKey && !install.hidden) return;
 
+    validating = true;
     testButton.disabled = true;
     testButton.textContent = 'Validando...';
     setStatus('Consultando sua biblioteca do Stremio...', 'info');
@@ -92,11 +96,12 @@ function setupPage(baseUrl) {
       try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('O servidor respondeu algo inválido. Veja o PowerShell.'); }
       if (!response.ok) throw new Error(data.error || 'Falha ao validar a chave');
 
+      lastValidatedKey = authKey;
       const manifestUrl = baseUrl + '/' + encodeURIComponent(authKey) + '/manifest.json';
       const stremioUrl = manifestUrl.replace(/^https?:\\/\\//, 'stremio://');
       install.href = stremioUrl;
       install.hidden = false;
-      setStatus('Chave válida. Biblioteca encontrada: ' + data.libraryItems + ' itens. Agora clique em “Instalar no Stremio”.', 'good');
+      setStatus('Chave válida. Biblioteca encontrada: ' + data.libraryItems + ' itens. Clique em “Instalar no Stremio”.', 'good');
     } catch (error) {
       const message = error && error.name === 'AbortError'
         ? 'A validação passou de 20 segundos. Veja o PowerShell e tente novamente.'
@@ -104,9 +109,33 @@ function setupPage(baseUrl) {
       setStatus(message, 'bad');
     } finally {
       clearTimeout(timeout);
+      validating = false;
       testButton.disabled = false;
       testButton.textContent = 'Validar chave';
     }
+  }
+
+  function scheduleValidation() {
+    clearTimeout(debounceTimer);
+    install.hidden = true;
+    const authKey = cleanKey();
+    if (!authKey) {
+      setStatus('Cole a chave. A validação começa automaticamente.', 'info');
+      return;
+    }
+    setStatus('Chave inserida. Validando automaticamente...', 'info');
+    if (authKey.length >= 20) {
+      debounceTimer = setTimeout(validateKey, 450);
+    }
+  }
+
+  keyInput.addEventListener('input', scheduleValidation);
+  keyInput.addEventListener('paste', () => setTimeout(scheduleValidation, 0));
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    clearTimeout(debounceTimer);
+    validateKey();
   });
 })();
 </script>
