@@ -1,0 +1,21 @@
+{
+  "name": "stremio-unwatched",
+  "version": "0.1.0",
+  "description": "A Stremio catalog that shows the real number of released, unwatched episodes.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "sharp": "^0.34.3",
+    "stremio-watched-bitfield": "^1.1.0"
+  },
+  "license": "MIT"
+}
