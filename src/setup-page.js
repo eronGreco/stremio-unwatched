@@ -37,11 +37,11 @@ function setupPage(baseUrl) {
     <input id="authKey" type="password" autocomplete="off" spellcheck="false" placeholder="Cole sua authKey aqui" />
     <div class="buttons">
       <button id="test" type="submit">Validar chave</button>
-      <a class="button" id="install" href="#" hidden>Instalar no Stremio</a>
+      <a class="button" id="install" href="#" target="_blank" rel="noreferrer" hidden>Instalar no Stremio</a>
     </div>
   </form>
   <div id="status" class="info">Cole a chave. A validação começa automaticamente.</div>
-  <small>V0.1.1 é voltada a teste local. A URL instalada contém sua authKey, portanto não compartilhe a URL do manifest. A versão pública usará um token opaco próprio.</small>
+  <small>V0.1.2 é voltada a teste local. O instalador usa o servidor local do próprio Stremio em <code>127.0.0.1:11470</code> para preservar o endereço HTTP do addon.</small>
 </main>
 <script>
 (() => {
@@ -56,12 +56,19 @@ function setupPage(baseUrl) {
   let lastValidatedKey = '';
 
   function cleanKey() {
-    return keyInput.value.trim().replace(/^['"]|['"]$/g, '');
+    return keyInput.value.trim().replace(/^['\"]|['\"]$/g, '');
   }
 
   function setStatus(message, kind) {
     statusBox.className = kind || '';
     statusBox.textContent = message;
+  }
+
+  function buildManifestUrl(authKey) {
+    const url = new URL(baseUrl + '/' + encodeURIComponent(authKey) + '/manifest.json');
+    url.protocol = 'http:';
+    url.hostname = '127.0.0.1';
+    return url.toString();
   }
 
   async function validateKey() {
@@ -97,9 +104,8 @@ function setupPage(baseUrl) {
       if (!response.ok) throw new Error(data.error || 'Falha ao validar a chave');
 
       lastValidatedKey = authKey;
-      const manifestUrl = baseUrl + '/' + encodeURIComponent(authKey) + '/manifest.json';
-      const stremioUrl = manifestUrl.replace(/^https?:\\/\\//, 'stremio://');
-      install.href = stremioUrl;
+      const manifestUrl = buildManifestUrl(authKey);
+      install.href = 'http://127.0.0.1:11470/#?addon=' + encodeURIComponent(manifestUrl);
       install.hidden = false;
       setStatus('Chave válida. Biblioteca encontrada: ' + data.libraryItems + ' itens. Clique em “Instalar no Stremio”.', 'good');
     } catch (error) {
